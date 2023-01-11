@@ -1,2 +1,2 @@
 # Automations
-A holding area for Automations for use with GivEnergy Inverters on in Home Assistant
+A holding area for Automations for use with GivEnergy Inverters in Home Assistant
