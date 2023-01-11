@@ -1,0 +1,89 @@
+alias: "Battery: Solar forecast configurable"
+description: selects battery charge limit depending on solar forecast
+trigger:
+  - platform: time
+    at: "21:45:00"
+condition:
+  - condition: state
+    entity_id: input_boolean.sys_ctrl_sol_forecast_enable
+    state: "on"
+action:
+  - variables:
+      target_soc: |-
+        {% set solar_forecast = states(entity_solar_forecast)|float %} 
+         {% if solar_forecast > states(entity_trigger_1)|float %}  {{states(entity_target_1) |float(0) | round(0)}}  
+         {% elif solar_forecast > states(entity_trigger_2)|float %} {{states(entity_target_2) |float(0) | round(0)}} 
+         {% elif solar_forecast > states(entity_trigger_3)|float %} {{states(entity_target_3) |float(0) | round(0)}}  
+         {% elif solar_forecast > states(entity_trigger_4)|float %} {{states(entity_target_4) |float(0) | round(0)}} 
+         {% elif solar_forecast > states(entity_trigger_5)|float %} {{states(entity_target_5) |float(0) | round(0)}}  
+         {% elif solar_forecast > states(entity_trigger_6)|float %} {{states(entity_target_6) |float(0) | round(0)}} 
+         {% elif solar_forecast > states(entity_trigger_7)|float %} {{states(entity_target_7) |float(0) | round(0)}}   
+         {% else %} {{states(entity_target_default) |float(0) | round(0)}} {% endif %}
+  - service: number.set_value
+    data:
+      value: "{{ target_soc | float }} "
+    target:
+      entity_id: "{{ entity_inverter_target_soc }}"
+  - delay:
+      hours: 0
+      minutes: 1
+      seconds: 0
+      milliseconds: 0
+  - if:
+      - condition: template
+        value_template: "{{ states(entity_inverter_target_soc)|float != target_soc|float }}"
+    then:
+      - service: notify.persistent_notification
+        data:
+          message: "Battery: Failed to set SOC... trying again."
+      - service: number.set_value
+        data:
+          value: "{{ target_soc | float }} "
+        target:
+          entity_id: "{{ entity_inverter_target_soc }}"
+      - delay:
+          hours: 0
+          minutes: 1
+          seconds: 0
+          milliseconds: 0
+  - service: input_text.set_value
+    data:
+      value: >-
+        ({{now().strftime("%Y-%m-%d %H:%M:%S")}}) Forecast: {{
+        states(entity_solar_forecast) }}kWh | Limit: {{ target_soc }} | In
+        Winter %
+    target:
+      entity_id: "{{ entity_helper_logging }}"
+  - wait_for_trigger:
+      - platform: time
+        at: "06:30:00"
+  - service: number.set_value
+    data:
+      value: 100
+    target:
+      entity_id: "{{ entity_inverter_target_soc }}"
+  - delay:
+      hours: 0
+      minutes: 1
+      seconds: 0
+      milliseconds: 0
+variables:
+  entity_solar_forecast: sensor.solcast_forecast_tomorrow
+  entity_inverter_target_soc: number.givtcp_YOURINVERTER_target_soc
+  entity_helper_logging: input_text.battery_charge_limit_log_2
+  entity_target_1: input_number.sys_sol_forecast_1
+  entity_target_2: input_number.sys_sol_forecast_2
+  entity_target_3: input_number.sys_sol_forecast_3
+  entity_target_4: input_number.sys_sol_forecast_4
+  entity_target_5: input_number.sys_sol_forecast_5
+  entity_target_6: input_number.sys_sol_forecast_6
+  entity_target_7: input_number.sys_sol_forecast_7
+  entity_target_default: input_number.sys_sol_forecast_default
+  entity_trigger_1: input_number.sys_sol_output_1
+  entity_trigger_2: input_number.sys_sol_output_2
+  entity_trigger_3: input_number.sys_sol_output_3
+  entity_trigger_4: input_number.sys_sol_output_4
+  entity_trigger_5: input_number.sys_sol_output_5
+  entity_trigger_6: input_number.sys_sol_output_6
+  entity_trigger_7: input_number.sys_sol_output_7
+mode: restart
